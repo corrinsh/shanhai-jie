@@ -34,8 +34,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 #stickBase::after{content:'';position:absolute;left:50%;top:50%;width:1px;height:132px;background:rgba(255,255,255,.06);transform:translate(-50%,-50%)}
 #stickKnob{position:absolute;width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.5),rgba(255,255,255,.18));border:2px solid rgba(255,255,255,.55);box-shadow:0 4px 14px rgba(0,0,0,.5);transform:translate(-50%,-50%)}
 
-/* 右手操作区：普攻按住连发 + 3技能拖拽指向 + 闪避 */
-#actions{position:absolute;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:10px;pointer-events:auto;z-index:5}
+/* 右手操作区（v0.4横版）：普攻连击 + 3技能瞬发 + 跳跃 + 闪避 */
+#actions{position:absolute;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap-reverse;justify-content:flex-end;max-width:calc(100% - 180px);pointer-events:auto;z-index:5}
+#actions .action-label{font-size:9px;letter-spacing:1px}
 .action-btn{width:60px;height:60px;border-radius:50%;border:2px solid rgba(255,255,255,.28);background:rgba(18,18,32,.45);color:#fff;font-size:26px;display:flex;justify-content:center;align-items:center;cursor:pointer;position:relative;box-shadow:0 4px 14px rgba(0,0,0,.4);transition:transform .08s;touch-action:none}
 .action-btn:active{transform:scale(.9)}
 .action-btn.cd{opacity:.55;filter:grayscale(.6)}
@@ -220,6 +221,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
     <div id="skillBtn1" class="skill-btn"><span>🔥</span><div class="action-cd" id="skillCd1" style="display:none"></div><div class="action-label">火球</div></div>
     <div id="skillBtn2" class="skill-btn"><span>❄️</span><div class="action-cd" id="skillCd2" style="display:none"></div><div class="action-label">冰锥</div></div>
     <div id="skillBtn3" class="skill-btn"><span>⚡</span><div class="action-cd" id="skillCd3" style="display:none"></div><div class="action-label">闪电</div></div>
+    <div id="jumpBtn" class="action-btn"><span>⬆</span><div class="action-label">跳跃</div></div>
     <div id="dashBtn" class="action-btn"><span>💨</span><div class="action-cd" id="dashCd" style="display:none"></div><div class="action-label">闪避</div></div>
     <div id="attackBtn" class="attack-btn"><span>🗡</span><div class="action-label">普攻</div></div>
   </div>
@@ -230,7 +232,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
 <!-- 开始画面 -->
 <div id="start">
   <div class="start-card">
-    <div class="start-title">异兽猎手·山海劫 <span style="font-size:14px;color:#888;vertical-align:middle">v0.1</span></div>
+    <div class="start-title">异兽猎手·山海劫 <span style="font-size:14px;color:#888;vertical-align:middle">v0.4</span></div>
     <div class="start-sub">山海异兽现世 · 御兽猎手入局</div>
     <div class="char-select" id="charSelect">
       <div class="char-card selected" data-char="warrior">
@@ -253,7 +255,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a0f;font-family:
     <button id="startBtn">开始狩猎</button>
     <button id="codexBtn">📜 异兽图鉴</button>
     <button id="openSettingsBtn" class="settings-entry">⚙️ 设置</button>
-    <div class="start-hint">左下摇杆移动 · 右下🗡普攻按住连发 / 🔥❄️⚡技能拖拽方向施放 / 💨闪避<br>普攻与技能都朝手指拖拽方向打出，技能有冷却<br>收集兽踪 → 异兽现身 → 猎杀 → 剥取兽魂 → 三选一强化<br>异兽出招有红光预警，走位闪避、绕背击破弱点<br>建议横屏游玩</div>
+    <div class="start-hint">横版地下城 · 左摇杆左右移动 / ⬆跳跃 / 🗡普攻连按三连斩 / 💨闪避<br>🔥❄️⚡技能瞬发朝角色面向，有冷却<br>收集兽踪 → 异兽现身 → 猎杀 → 剥取兽魂 → 三选一强化<br>异兽出招有红光预警，走位闪避、绕背击破弱点<br>建议横屏游玩</div>
   </div>
 </div>
 
@@ -402,6 +404,16 @@ function drawCircleImage(ctx,img,cx,cy,size){
   ctx.clip();
   ctx.drawImage(img,cx,cy,size,size);
   ctx.restore();
+}
+
+/* v0.4 颜色变亮/变暗（渲染辅助，pct 负数=变暗） */
+function shadeColor(hex,pct){
+  var n=parseInt(String(hex).replace('#',''),16);
+  if(isNaN(n))return hex;
+  var r=Math.max(0,Math.min(255,((n>>16)&255)+pct));
+  var g=Math.max(0,Math.min(255,((n>>8)&255)+pct));
+  var b=Math.max(0,Math.min(255,(n&255)+pct));
+  return 'rgb('+Math.round(r)+','+Math.round(g)+','+Math.round(b)+')';
 }
 
 /* ============================================================
@@ -571,8 +583,29 @@ var player={
   xpMul:1,
   invuln:0,
   facing:0,
+  onGround:true,
   charType:'warrior'
 };
+
+/* ============================================================
+   v0.4 横版物理：重力 / 跳跃 / 地面线
+   ============================================================ */
+var GROUND_Y=440;      // 世界坐标地面线（所有实体站立高度）
+var GRAVITY=3200;      // 重力 px/s²
+var JUMP_VEL=950;      // 跳跃初速 px/s（向上）
+var jumpPressed=false; // 跳跃按钮瞬发触发（update 消费）
+
+/* 普攻三段连击（近战挥砍，DNF 式）：
+   stage 1→2→3，窗口内连按递进，超时重置
+   startup=前摇(判定延迟) / hitWindow=判定框激活 / recovery=总动作时长 / window=连段衔接窗口 / kb=击退力 */
+var COMBO_DEFS={
+  1:{damage:1.0,range:48,halfH:26,startup:0.06,recovery:0.26,window:0.45,kb:60,label:'一段斩'},
+  2:{damage:1.2,range:54,halfH:28,startup:0.06,recovery:0.28,window:0.5,kb:90,label:'二段斩'},
+  3:{damage:1.7,range:62,halfH:30,startup:0.1,recovery:0.42,window:0.55,kb:160,label:'三段斩'}
+};
+var combo={stage:0,done:false,hitAt:0,nextAt:0,hitSet:[]};
+var slashFX=[];        // 挥砍弧光特效 {x,y,dir,life,maxLife,range,stage}
+var hitstopT=0;        // 顿帧计时（>0 时冻结整个 update）
 
 var enemies=[];
 var projectiles=[];
@@ -649,7 +682,8 @@ function tryDash(){
   dash.cd=2.5;
   dash.dur=0.15;
   player.invuln=Math.max(player.invuln,0.35);
-  var ang=(joy.dx||joy.dy)?Math.atan2(joy.dy,joy.dx):player.facing;
+  // 横版闪避：水平方向（摇杆朝左/右，否则按当前面向）
+  var ang=(Math.abs(joy.dx)>0.12)?(joy.dx>0?0:Math.PI):player.facing;
   dash.ang=ang;
   for(var i=0;i<12;i++)spawnParticle(player.x,player.y,'#81d4fa',4,0.4);
   game.shake=Math.max(game.shake,3);
@@ -683,11 +717,12 @@ function genMap(levelIdx){
   var tries=0;
   while(obstacles.length<cfg.obstacles&&tries<600){
     tries++;
-    var r=20+Math.random()*14;
+    var r=16+Math.random()*12;
     var x=r+Math.random()*(mapW-r*2);
-    var y=r+Math.random()*(mapH-r*2);
-    // 离出生点（地图中心）太近的不放
-    var dx=x-mapW/2,dy=y-mapH/2;
+    // 横版：石墩站在地面上（露出 30~90px）
+    var y=GROUND_Y-30-Math.random()*40;
+    // 离出生点（地图左侧 1/4）太近的不放
+    var dx=x-mapW*0.25,dy=y-GROUND_Y;
     if(dx*dx+dy*dy<320*320)continue;
     var ok=true;
     for(var i=0;i<obstacles.length;i++){
@@ -697,24 +732,24 @@ function genMap(levelIdx){
     }
     if(ok)obstacles.push({x:x,y:y,radius:r});
   }
-  // 装饰散点（草丛/小石）
+  // 装饰散点（草丛/小石，横版贴地面一带）
   for(var i=0;i<90;i++){
     decorations.push({
       x:Math.random()*mapW,
-      y:Math.random()*mapH,
+      y:GROUND_Y-4-Math.random()*30,
       type:Math.random()<0.6?'grass':'rock',
       size:2+Math.random()*4
     });
   }
 
-  // v6：宝箱（每关随机1~3个，带血量，击打破损得奖励；避开出生点与障碍物）
+  // v6：宝箱（每关随机1~3个，带血量，击打破损得奖励；横版贴地面，避开出生点与障碍物）
   var chestCount=1+Math.floor(Math.random()*3);
   var chestTries=0;
   while(chests.length<chestCount&&chestTries<300){
     chestTries++;
-    var cxx=40+Math.random()*(mapW-80);
-    var cyy=40+Math.random()*(mapH-80);
-    var cdx=cxx-mapW/2,cdy=cyy-mapH/2;
+    var cxx=60+Math.random()*(mapW-120);
+    var cyy=GROUND_Y-16;
+    var cdx=cxx-mapW*0.25,cdy=0;
     if(cdx*cdx+cdy*cdy<320*320)continue;
     var cok=true;
     for(var ci=0;ci<obstacles.length;ci++){
@@ -784,29 +819,27 @@ function resolveObstacles(obj,radius){
   obj.y=Math.max(radius,Math.min(mapH-radius,obj.y));
 }
 
-/* 摄像机跟随（clamp 在地图内） */
+/* 摄像机跟随（v0.4横版：camY 固定地面线，camX 横向卷轴、玩家偏左38%） */
 function updateCamera(){
-  camX=player.x-W/2;
-  camY=player.y-H/2;
+  camX=player.x-W*0.38;
+  camY=GROUND_Y-H*0.62;
   if(camX<0)camX=0;
-  if(camY<0)camY=0;
   if(camX>mapW-W)camX=mapW-W;
-  if(camY>mapH-H)camY=mapH-H;
 }
 
 /* ============================================================
    武器系统
    ============================================================ */
 var WEAPON_DEFS={
-  // kind: attack=普攻(按住拖拽方向连发) | skill=主动技能(按下拖拽方向、松手施放)
-  // 普攻（按角色区分）
-  knife:{name:'飞刀',icon:'🗡',desc:'普攻·拖拽方向甩刀',kind:'attack',cooldown:0.24,damage:12,speed:9.5,pierce:1,projRadius:5,color:'#e0e0e0'},
-  magebolt:{name:'法球',icon:'🔮',desc:'普攻·拖拽方向魔法弹',kind:'attack',cooldown:0.42,damage:17,speed:8,aoe:16,projRadius:8,color:'#ba68c8'},
-  arrow:{name:'连射',icon:'🏹',desc:'普攻·拖拽方向连射',kind:'attack',cooldown:0.18,damage:9,speed:11,pierce:2,projRadius:4,color:'#66bb6a'},
-  // 主动技能（固定3槽）
-  fireball:{name:'火球',icon:'🔥',desc:'拖拽方向·命中溅射',kind:'skill',cooldown:2.2,damage:38,speed:6,aoe:44,projRadius:10,color:'#ff6f00'},
-  ice:{name:'冰锥',icon:'❄️',desc:'拖拽方向·命中减速',kind:'skill',cooldown:3.2,damage:24,speed:8,slow:2.2,projRadius:8,color:'#80deea'},
-  lightning:{name:'闪电链',icon:'⚡',desc:'拖拽方向·链式跳跃',kind:'skill',cooldown:4.5,damage:50,speed:12,chain:4,projRadius:7,color:'#ffee58'}
+  // kind: attack=普攻(近战三连斩，横版) | skill=主动技能(瞬发朝面向)
+  // 普攻（按角色区分，均为近战挥砍连段，伤害随武器升级成长）
+  knife:{name:'飞刀',icon:'🗡',desc:'普攻·三连斩(近战)',kind:'attack',cooldown:0.24,damage:12,speed:9.5,pierce:1,projRadius:5,color:'#e0e0e0'},
+  magebolt:{name:'法球',icon:'🔮',desc:'普攻·杖击三连(近战)',kind:'attack',cooldown:0.42,damage:17,speed:8,aoe:16,projRadius:8,color:'#ba68c8'},
+  arrow:{name:'连射',icon:'🏹',desc:'普攻·短刃三连(近战)',kind:'attack',cooldown:0.18,damage:9,speed:11,pierce:2,projRadius:4,color:'#66bb6a'},
+  // 主动技能（固定3槽，瞬发朝角色面向）
+  fireball:{name:'火球',icon:'🔥',desc:'瞬发·命中溅射',kind:'skill',cooldown:2.2,damage:38,speed:6,aoe:44,projRadius:10,color:'#ff6f00'},
+  ice:{name:'冰锥',icon:'❄️',desc:'瞬发·命中减速',kind:'skill',cooldown:3.2,damage:24,speed:8,slow:2.2,projRadius:8,color:'#80deea'},
+  lightning:{name:'闪电链',icon:'⚡',desc:'瞬发·链式跳跃',kind:'skill',cooldown:4.5,damage:50,speed:12,chain:4,projRadius:7,color:'#ffee58'}
 };
 
 var CHAR_WEAPONS={warrior:'knife',mage:'magebolt',ranger:'arrow'};
@@ -863,17 +896,17 @@ function initSkills(charType){
 /* ============================================================
    v0.3 手动施放：普攻按住连发 + 技能拖拽指向（地下城式操作）
    ============================================================ */
-var aim={active:false,kind:null,type:null,touchId:null,angle:0};
+var aim={active:false,kind:null,type:null,touchId:null,angle:0}; // v0.4 废弃占位（不再用于施放）
 var attackHeld={active:false,touchId:null,angle:0};
 
-/* 核心发射：把武器弹道打向指定角度 */
+/* v0.4 核心发射：技能弹道朝角色面向水平打出 */
 function shootWeapon(w,angle){
   var sp=w.speed||6;
   var cnt=w.count||1;
   for(var k=0;k<cnt;k++){
     var spr=(cnt>1?(k-(cnt-1)/2)*0.12:0);
     projectiles.push({
-      x:player.x,y:player.y,
+      x:player.x,y:player.y-8,
       vx:Math.cos(angle+spr)*sp,vy:Math.sin(angle+spr)*sp,
       damage:w.damage*player.damageMul,
       pierce:w.pierce||0,hits:[],
@@ -882,41 +915,105 @@ function shootWeapon(w,angle){
       aoe:w.aoe||0,slow:w.slow||0,chain:w.chain||0,life:1.6,trail:[]
     });
   }
-  spawnParticle(player.x+Math.cos(angle)*26,player.y+Math.sin(angle)*26,w.color,3,0.18);
+  spawnParticle(player.x+Math.cos(angle)*26,player.y-8+Math.sin(angle)*26,w.color,3,0.18);
 }
 
-/* 主动技能施放（按CD） */
-function castSkill(type,angle){
+/* 主动技能：按下即瞬发朝角色面向（横版，无拖拽瞄准） */
+function castSkill(type){
   if(!game.running||game.paused)return false;
   var w=weapons.find(function(x){return x.type===type});
   if(!w||w.kind!=='skill'||w.cd>0)return false;
   w.cd=w.cooldown*player.cooldownMul;
-  shootWeapon(w,angle);
-  ringFX.push({x:player.x,y:player.y,r:24,life:0.18,maxLife:0.18,color:w.color});
+  shootWeapon(w,player.facing);
+  ringFX.push({x:player.x,y:player.y-8,r:24,life:0.18,maxLife:0.18,color:w.color});
   game.shake=Math.max(game.shake,3);
   return true;
 }
 
-/* 瞄准角度：玩家屏幕中心 → 手指位置 */
-function aimAngle(t){
-  var sx=player.x-camX,sy=player.y-camY;
-  return Math.atan2(t.clientY-sy,t.clientX-sx);
-}
-function aimStart(kind,type,t){
+/* v0.4 普攻：近战三连斩（DNF式轻击连段）
+   点按触发；前摇(startup)后判定框一击；判定后可取消后摇直接递进 1→2→3；超时重置 */
+function tryAttack(){
   if(!game.running||game.paused)return;
-  aim.active=true;aim.kind=kind;aim.type=type;aim.touchId=t.identifier;
-  aim.angle=player.facing;
+  if(combo.stage>0&&game.time>combo.nextAt)combo.stage=0; // 连段窗口超时重置
+  if(combo.stage>0&&!combo.done&&game.time<combo.hitAt)return; // 起手前摇不可取消
+  combo.stage=(combo.stage%3)+1;
+  var df=COMBO_DEFS[combo.stage];
+  combo.active=df.recovery;
+  combo.done=false;
+  combo.hitAt=game.time+df.startup;
+  combo.nextAt=game.time+df.window;
+  combo.hitSet=[];
+  // 挥砍弧光（前摇表现）
+  var dir=player.facing>Math.PI/2?-1:1;
+  slashFX.push({x:player.x+dir*(player.radius+df.range*0.4),y:player.y-6,dir:dir,life:0.14,maxLife:0.14,range:df.range,stage:combo.stage});
 }
-function aimMove(t){
-  if(t.identifier!==aim.touchId)return;
-  aim.angle=aimAngle(t);
+
+/* 判定框命中（前摇结束触发一击） */
+function slashHit(df){
+  var dir=player.facing>Math.PI/2?-1:1;
+  var bx=player.x+dir*(player.radius+df.range*0.3);
+  var by=player.y-8;
+  // 普攻基础伤害（随武器升级成长）
+  var aw=weapons.find(function(x){return x.kind==='attack'});
+  var base=aw?aw.damage:12;
+  var hitAny=false;
+  for(var i=enemies.length-1;i>=0;i--){
+    var e=enemies[i];
+    if(combo.hitSet.indexOf(e)>=0)continue;
+    // 矩形判定框 ∩ 圆(敌人)：取最近点距离
+    var cx=Math.max(bx,Math.min(e.x,bx+dir*df.range));
+    var cy=Math.max(by-df.halfH,Math.min(e.y,by+df.halfH));
+    var ddx=e.x-cx,ddy=e.y-cy;
+    if(ddx*ddx+ddy*ddy<e.radius*e.radius){
+      combo.hitSet.push(e);
+      hitAny=true;
+      // 背刺：玩家在 BOSS 背后（攻击方向与 BOSS 面向相同）→ 1.6倍（横版绕后）
+      var dmul=1;
+      if(e.isHuntBoss){
+        var bdir=e.facing>Math.PI/2?-1:1;
+        if(bdir===dir)dmul=1.6;
+      }
+      var dmg=Math.round(df.damage*base*player.damageMul*dmul*10)/10;
+      e.hp-=dmg;
+      applySoulEffects(e,0.016);
+      // 打击感：小怪击退/全体闪白/飘字/火花/顿帧/震屏
+      if(!e.isBoss){
+        e.hitstun=0.28;
+        e.knockback=dir*df.kb;
+      }
+      e.flash=0.1;
+      damageTexts.push({x:e.x,y:e.y-30,val:dmg,life:0.7,vy:-1.3,color:dmul>1?'#ffd700':'#ffeb3b'});
+      spawnParticle(e.x,Math.min(e.y,GROUND_Y-6),'#fff',6,0.22);
+      game.shake=Math.max(game.shake,3);
+      hitstopT=Math.max(hitstopT,df.stage>=3?0.06:0.04); // 三段斩命中顿帧更久
+      if(e.hp<=0)killEnemy(e);
+    }
+  }
+  // v0.4 近战砍宝箱（横版：普攻三连斩可击打破碎；狩猎模式 chests 为空自然跳过）
+  for(var ci=chests.length-1;ci>=0;ci--){
+    var cb2=chests[ci];
+    if(cb2.opened)continue;
+    var ccx=Math.max(bx,Math.min(cb2.x,bx+dir*df.range));
+    var ccy=Math.max(by-df.halfH,Math.min(cb2.y,by+df.halfH));
+    var cdx=cb2.x-ccx,cdy=cb2.y-ccy;
+    if(cdx*cdx+cdy*cdy<cb2.radius*cb2.radius){
+      cb2.hp-=df.damage*base;
+      spawnParticle(cb2.x,cb2.y,'#ffd700',4,0.25);
+      damageTexts.push({x:cb2.x,y:cb2.y-26,val:Math.round(df.damage*base),life:0.6,vy:-1.2,color:'#ffd700'});
+      hitAny=true;
+      if(cb2.hp<=0)openChest(cb2);
+    }
+  }
+  if(hitAny){
+    spawnParticle(player.x+dir*20,player.y-10,df.stage===3?'#ffd700':'#fff',5,0.3);
+  }
 }
-function aimEnd(t){
-  if(t.identifier!==aim.touchId)return;
-  var kind=aim.kind,type=aim.type,ang=aim.angle;
-  aim.active=false;aim.kind=null;aim.type=null;aim.touchId=null;
-  if(kind==='skill')castSkill(type,ang);
-}
+
+/* v0.3 aim 拖拽瞄准已废弃（横版瞬发），保留空实现防旧调用报错 */
+function aimAngle(t){return player.facing;}
+function aimStart(kind,type,t){}
+function aimMove(t){}
+function aimEnd(t){}
 
 function updateWeaponBar(){
   var el=document.getElementById('weapons');
@@ -939,7 +1036,7 @@ function updateWeaponBar(){
    ============================================================ */
 var ENEMY_TYPES={
   zombie:{hp:20,speed:0.8,radius:12,damage:8,xp:1,color:'#8bc34a',shape:'circle'},
-  bat:{hp:8,speed:1.8,radius:8,damage:5,xp:1,color:'#9c27b0',shape:'triangle'},
+  bat:{hp:8,speed:1.8,radius:8,damage:5,xp:1,color:'#9c27b0',shape:'triangle',fly:true},
   brute:{hp:80,speed:0.5,radius:20,damage:15,xp:3,color:'#ff5722',shape:'square'},
   shooter:{hp:15,speed:0.6,radius:11,damage:6,xp:2,color:'#00bcd4',shape:'diamond',ranged:true},
   swarmer:{hp:5,speed:1.3,radius:7,damage:3,xp:1,color:'#cddc39',shape:'circle'}
@@ -963,6 +1060,8 @@ function spawnEnemy(type,x,y,mul){
     color:def.color,
     shape:def.shape,
     ranged:def.ranged||false,
+    fly:def.fly||false,
+    hitstun:0,knockback:0,flash:0,
     shootTimer:Math.random()*2,
     slowTimer:0,
     isBoss:!!BOSS_TYPES[type],
@@ -1080,9 +1179,9 @@ function genClues(){
   while(clues.length<need&&tries<400){
     tries++;
     var x=70+Math.random()*(mapW-140);
-    var y=70+Math.random()*(mapH-140);
-    var dx=x-mapW/2,dy=y-mapH/2;
-    if(dx*dx+dy*dy<300*300)continue;
+    var y=GROUND_Y-18; // 横版：兽踪立在地面上
+    var dx=x-mapW*0.25;
+    if(dx*dx<300*300)continue;
     var ok=true;
     for(var i=0;i<obstacles.length;i++){
       var o=obstacles[i];
@@ -1094,7 +1193,7 @@ function genClues(){
   while(clues.length<need){
     var a=Math.random()*Math.PI*2;
     var d2=mapW*0.3+Math.random()*mapW*0.2;
-    clues.push({x:Math.max(40,Math.min(mapW-40,mapW/2+Math.cos(a)*d2)),y:Math.max(40,Math.min(mapH-40,mapH/2+Math.sin(a)*d2)),got:false});
+    clues.push({x:Math.max(60,Math.min(mapW-60,mapW*0.25+Math.cos(a)*d2)),y:GROUND_Y-18,got:false});
   }
 }
 
@@ -1115,8 +1214,9 @@ function startHunt(chapterIdx){
 
   // 地图：取本章第1关配置（grass/forest/canyon/snow/abyss 自动对应）
   genMap(chapterIdx*20);
-  player.x=mapW/2;
-  player.y=mapH/2;
+  player.x=mapW*0.25;
+  player.y=GROUND_Y;
+  player.vx=0;player.vy=0;player.onGround=true;
   var cs=CHAR_STATS[game.selectedChar];
   player.charType=game.selectedChar;
   player.hp=cs.hp;
@@ -1143,6 +1243,10 @@ function startHunt(chapterIdx){
   dash={cd:0,dur:0,ang:0};
   attackHeld={active:false,touchId:null,angle:0};
   aim={active:false,kind:null,type:null,touchId:null,angle:0};
+  combo={stage:0,done:false,hitAt:0,nextAt:0,hitSet:[]};
+  slashFX=[];
+  hitstopT=0;
+  jumpPressed=false;
   bossSpawned=false;
   levelCleared=false;
   initSkills(game.selectedChar);
@@ -1163,16 +1267,18 @@ function spawnHuntBoss(){
   if(!game.running)return;
   var ch=HUNT_CHAPTERS[hunt.chapter];
   var cfg=ch.boss;
-  var ang=Math.random()*Math.PI*2;
+  // 横版：异兽从玩家左侧或右侧的地面现身
+  var dir=Math.random()<0.5?-1:1;
   var dist=Math.max(W,H)*0.5+80;
-  var x=player.x+Math.cos(ang)*dist;
-  var y=player.y+Math.sin(ang)*dist;
+  var x=player.x+dir*dist;
   x=Math.max(80,Math.min(mapW-80,x));
-  y=Math.max(80,Math.min(mapH-80,y));
+  var y=GROUND_Y;
   var b={x:x,y:y,radius:cfg.radius,maxHp:cfg.hp,hp:cfg.hp,type:cfg.img,name:cfg.name,color:cfg.color,
     isBoss:true,isHuntBoss:true,shape:'circle',xp:20,damage:12,
-    facing:Math.atan2(player.y-y,player.x-x),phase:'chase',phaseT:2,
-    telegraph:null,windAng:0,dashVx:0,dashVy:0,roarDone:false,slowTimer:0,speed:cfg.speed};
+    facing:player.x>x?0:Math.PI, // 横版：现身即水平朝向玩家（0=右 π=左）
+    phase:'chase',phaseT:2,
+    telegraph:null,windAng:0,dashVx:0,dashVy:0,roarDone:false,slowTimer:0,speed:cfg.speed,
+    hitstun:0,knockback:0,flash:0};
   hunt.boss=b;
   enemies.push(b);
   bossSpawned=true;
@@ -1183,14 +1289,16 @@ function spawnHuntBoss(){
 /* 异兽AI：chase(追击) → windup(红光蓄力) → dash(冲锋)/roar(范围吼叫)/summon(召唤) */
 function updateBossAI(b,dt){
   var spdMul=(b.slowTimer>0?0.6:1);
+  if(b.flash>0)b.flash=Math.max(0,b.flash-dt);
   b.phaseT-=dt;
   if(b.phase==='chase'){
-    var dx=player.x-b.x,dy=player.y-b.y,d=Math.sqrt(dx*dx+dy*dy);
+    // 横版：水平追击
+    var dx=player.x-b.x,d=Math.abs(dx);
+    var dir=dx>0?1:-1;
     if(d>70){
-      b.facing=Math.atan2(dy,dx);
+      b.facing=dir>0?0:Math.PI;
       var mv=b.speed*spdMul;
-      b.x+=Math.cos(b.facing)*mv*dt*60;
-      b.y+=Math.sin(b.facing)*mv*dt*60;
+      b.x+=dir*mv*dt*60;
     }
     if(b.phaseT<=0){
       var pick=Math.random();
@@ -1203,8 +1311,10 @@ function updateBossAI(b,dt){
       if(b.telegraph.type==='dash'){
         b.phase='dash';b.phaseT=0.35;
         var sp2=b.speed*4.2*spdMul;
+        // 横版冲锋：只水平（0=右 π=左），不飞空
+        b.windAng=b.facing>Math.PI/2?Math.PI:0;
         b.dashVx=Math.cos(b.windAng)*sp2;
-        b.dashVy=Math.sin(b.windAng)*sp2;
+        b.dashVy=0;
       }else{
         b.phase='roar';b.phaseT=0.5;b.roarDone=false;
       }
@@ -1217,6 +1327,10 @@ function updateBossAI(b,dt){
       player.hp-=14;
       player.invuln=0.6;
       game.shake=10;
+      // 玩家被撞飞（打击感）
+      player.vx+=Math.cos(b.windAng)*8;
+      player.vy=Math.min(player.vy,-220);
+      damageTexts.push({x:player.x,y:player.y-26,val:'-14',life:0.6,vy:-1.2,color:'#ff5252'});
       spawnParticle(player.x,player.y,'#ff5252',6,0.4);
     }
     for(var oi=0;oi<obstacles.length;oi++){
@@ -1236,6 +1350,7 @@ function updateBossAI(b,dt){
         var k=(160-pd)/160;
         player.x+=pdx/pd*k*46;
         player.y+=pdy/pd*k*46;
+        damageTexts.push({x:player.x,y:player.y-26,val:'-16',life:0.6,vy:-1.2,color:'#ff5252'});
       }
       ringFX.push({x:b.x,y:b.y,r:40,life:0.5,maxLife:0.5,color:'#ff5252'});
       for(var pi=0;pi<18;pi++)spawnParticle(b.x,b.y,'#ff5252',4,0.5);
@@ -1244,14 +1359,14 @@ function updateBossAI(b,dt){
   }else if(b.phase==='summon'){
     if(b.phaseT<=0){
       // v0.1 修复：ENEMY_TYPES 无 normal 类型，召唤用 swarmer（妖狐侍从=快速小怪）
-      for(var si=0;si<2;si++)spawnEnemy('swarmer',b.x+(Math.random()-0.5)*60,b.y+(Math.random()-0.5)*60,1);
+      for(var si=0;si<2;si++)spawnEnemy('swarmer',b.x+(Math.random()-0.5)*60,GROUND_Y,1);
       toastShow('召唤妖狐侍从！');
       b.phase='chase';b.phaseT=2.8;
     }
   }
+  b.y=GROUND_Y; // 横版：BOSS 始终站在地面
   resolveObstacles(b,b.radius);
   b.x=Math.max(b.radius,Math.min(mapW-b.radius,b.x));
-  b.y=Math.max(b.radius,Math.min(mapH-b.radius,b.y));
 }
 
 /* 兽魂附魔：火/雷/冰/毒 */
@@ -1644,6 +1759,9 @@ var lastTime=0;
 function update(dt){
   if(game.paused||!game.running)return;
 
+  // v0.4 顿帧：命中瞬间冻结全场（打击感核心，拳拳到肉）
+  if(hitstopT>0){hitstopT-=dt;return;}
+
   game.time+=dt;
 
   // v6：宝箱BUFF计时递减
@@ -1671,11 +1789,13 @@ function update(dt){
     }
   }
 
-  // 玩家移动（v4.2 乘灵敏度系数；v6 宝箱移速BUFF加成）
+  // v0.4 玩家移动（横版）：左右移动 + 重力 + 跳跃 + 攻击减速
   var spd=player.speed*player.speedMul*SETTINGS.sens*(buffTimers.spd>0?1.5:1);
+  if(combo.active>0)spd*=0.45; // 挥砍动作中移动减速（有分量感）
   player.vx=joy.dx*spd;
-  player.vy=joy.dy*spd;
-  // 冲刺叠加（v4主动技能）
+  // 重力（秒制累积，跳跃时也受重力）
+  player.vy+=GRAVITY*dt;
+  // 冲刺叠加（横版水平冲刺，dash.ang=0或π）
   if(dash.dur>0){
     dash.dur-=dt;
     player.vx+=Math.cos(dash.ang)*16;
@@ -1683,13 +1803,29 @@ function update(dt){
     if(Math.random()<dt*40)spawnParticle(player.x,player.y,'#81d4fa',4,0.3);
   }
   if(dash.cd>0)dash.cd-=dt;
+  // 跳跃：着地瞬间消费跳跃键
+  if(jumpPressed&&player.onGround){
+    player.vy=-JUMP_VEL;
+    player.onGround=false;
+    jumpPressed=false;
+    for(var jj=0;jj<6;jj++)spawnParticle(player.x,GROUND_Y,'#b0bec5',3,0.25);
+  }
   player.x+=player.vx;
-  player.y+=player.vy;
+  player.y+=player.vy*dt;
+  // 地面碰撞 + 横向边界
+  if(player.y>=GROUND_Y){
+    player.y=GROUND_Y;
+    player.vy=0;
+    player.onGround=true;
+  }else{
+    player.onGround=false;
+  }
+  player.x=Math.max(player.radius,Math.min(mapW-player.radius,player.x));
   resolveObstacles(player,player.radius);
 
-  if(joy.dx||joy.dy){
-    player.facing=Math.atan2(joy.dy,joy.dx);
-  }
+  // 横版朝向：0=右 π=左（移动方向翻转）
+  if(joy.dx>0.12)player.facing=0;
+  else if(joy.dx<-0.12)player.facing=Math.PI;
 
   // 无敌帧
   if(player.invuln>0)player.invuln-=dt;
@@ -1699,24 +1835,39 @@ function update(dt){
     player.hp=Math.min(player.maxHp,player.hp+passives.regen*dt);
   }
 
-  // v0.3 手动技能：技能CD倒计时 + 普攻按住连发（朝拖拽方向）
+  // v0.4 武器CD倒计时 + 普攻连段状态机 + 挥砍特效生命周期
   weapons.forEach(function(w){
     if(w.cd>0)w.cd-=dt;
   });
-  if(attackHeld.active&&game.running&&!game.paused){
-    var aw=weapons.find(function(x){return x.kind==='attack'});
-    if(aw){
-      aw.cd-=dt;
-      if(aw.cd<=0){
-        aw.cd=aw.cooldown*(buffTimers.atk>0?0.6:1)*player.cooldownMul;
-        shootWeapon(aw,attackHeld.angle);
-      }
+  if(combo.stage>0){
+    // 前摇结束 → 判定框生效（一击）
+    if(game.time>=combo.hitAt&&!combo.done){
+      combo.done=true;
+      slashHit(COMBO_DEFS[combo.stage]);
     }
+    // 连段窗口超时 → 重置回第 1 段
+    if(game.time>combo.nextAt)combo.stage=0;
+  }
+  if(combo.active>0)combo.active-=dt;
+  for(var sfi=slashFX.length-1;sfi>=0;sfi--){
+    var sf=slashFX[sfi];
+    sf.life-=dt;
+    if(sf.life<=0)slashFX.splice(sfi,1);
   }
 
-  // 敌人移动
+  // v0.4 敌人移动（横版）：水平追击 + 地面约束 + 受击硬直/击退/闪白
   enemies.forEach(function(e){
     if(e.slowTimer>0)e.slowTimer-=dt;
+
+    // 受击硬直：击退期间不行动（打击感）
+    if(e.hitstun>0){
+      e.hitstun-=dt;
+      e.x+=e.knockback*dt*60;
+      e.knockback*=0.86;
+      if(e.flash>0)e.flash-=dt;
+      return;
+    }
+    if(e.flash>0)e.flash=Math.max(0,e.flash-dt);
 
     // v0.1 狩猎BOSS：独立AI（蓄力预警/冲锋/吼叫/召唤），跳过普通小怪逻辑
     if(e.isHuntBoss){
@@ -1724,22 +1875,20 @@ function update(dt){
       return;
     }
 
-    var dx=player.x-e.x,dy=player.y-e.y;
-    var d=Math.sqrt(dx*dx+dy*dy);
+    var dx=player.x-e.x;
+    var d=Math.abs(dx);
     var espd=e.speed*(e.slowTimer>0?0.4:1);
+    var dir=dx>0?1:-1;
 
     if(e.ranged&&d<200){
-      // 远程敌人保持距离
-      if(d<150){
-        e.x-=dx/d*espd*dt*60;
-        e.y-=dy/d*espd*dt*60;
-      }
+      // 远程敌人保持水平距离
+      if(d<150)e.x-=dir*espd*dt*60;
       e.shootTimer-=dt;
       if(e.shootTimer<=0){
         e.shootTimer=2;
         projectiles.push({
-          x:e.x,y:e.y,
-          vx:dx/d*3,vy:dy/d*3,
+          x:e.x,y:e.y-18,
+          vx:dir*3,vy:0,
           damage:e.damage,
           pierce:0,hits:[],
           radius:5,type:'enemy',
@@ -1747,23 +1896,34 @@ function update(dt){
         });
       }
     }else{
-      if(d>0){
-        e.x+=dx/d*espd*dt*60;
-        e.y+=dy/d*espd*dt*60;
-      }
+      if(d>4)e.x+=dir*espd*dt*60;
     }
+    // 横版站立：飞行怪悬浮，地面怪贴地
+    if(e.fly){
+      e.y=GROUND_Y-52+Math.sin(game.time*3+e.x*0.02)*12;
+    }else{
+      e.y=GROUND_Y;
+    }
+    e.facing=dir>0?0:Math.PI;
+    e.x=Math.max(e.radius,Math.min(mapW-e.radius,e.x));
 
-    // 障碍物碰撞 + 地图边界
+    // 障碍物碰撞
     resolveObstacles(e,e.radius);
 
     // 碰撞玩家
-    if(d<e.radius+player.radius&&player.invuln<=0){
+    var pdx=player.x-e.x,pdy=player.y-e.y;
+    if(pdx*pdx+pdy*pdy<(e.radius+player.radius)*(e.radius+player.radius)&&player.invuln<=0){
       if(passives.dodge>0&&Math.random()<passives.dodge){
         damageTexts.push({x:player.x,y:player.y-20,val:'闪避',life:0.6,vy:-1.5,color:'#fff'});
       }else{
         player.hp-=e.damage;
         player.invuln=0.6;
         game.shake=8;
+        // 玩家被击退（打击感）
+        player.vx+=dir*5;
+        player.vy=Math.min(player.vy,-160);
+        damageTexts.push({x:player.x,y:player.y-26,val:'-'+e.damage,life:0.6,vy:-1.2,color:'#ff5252'});
+        spawnParticle(player.x,player.y,'#ff5252',5,0.3);
         // 反伤
         if(passives.thorns>0){
           e.hp-=passives.thorns;
@@ -1799,14 +1959,14 @@ function update(dt){
         if(p.hits.indexOf(en)>=0)continue;
         var ex=en.x-p.x,ey=en.y-p.y;
         if(ex*ex+ey*ey<(en.radius+p.radius)*(en.radius+p.radius)){
-          // 背刺：玩家在异兽身后 → 1.6倍（驱动绕后走位）
+          // v0.4 背刺（横版）：弹道方向与 BOSS 面向相同（玩家绕后）→ 1.6倍
           var dmul=1;
           if(en.isHuntBoss){
-            var a2p=Math.atan2(player.y-en.y,player.x-en.x);
-            var diff=Math.abs(((a2p-en.facing+Math.PI*3)%(Math.PI*2))-Math.PI);
-            if(diff>2.2){
+            var bdir=en.facing>Math.PI/2?-1:1;
+            var adir=p.vx>=0?1:-1;
+            if(bdir===adir){
               dmul=1.6;
-              spawnParticle(en.x+Math.cos(en.facing+Math.PI)*en.radius*1.1,en.y+Math.sin(en.facing+Math.PI)*en.radius*1.1,'#ffd700',4,0.3);
+              spawnParticle(en.x+(bdir>0?1:-1)*en.radius*1.1,en.y-10,'#ffd700',4,0.3);
             }
           }
           en.hp-=p.damage*dmul;
@@ -1815,6 +1975,14 @@ function update(dt){
           applySoulEffects(en,dt);
           // 冰锥减速
           if(p.slow>0)en.slowTimer=Math.max(en.slowTimer,p.slow);
+          // v0.4 打击感：闪白/飘字/击退(小怪)/顿帧
+          en.flash=0.1;
+          damageTexts.push({x:en.x,y:en.y-30,val:Math.round(p.damage*dmul),life:0.7,vy:-1.3,color:dmul>1?'#ffd700':'#ffeb3b'});
+          if(!en.isBoss){
+            en.hitstun=0.18;
+            en.knockback=(p.vx>=0?1:-1)*120;
+          }
+          hitstopT=Math.max(hitstopT,0.03);
           // 命中火花
           spawnParticle(en.x,en.y,p.color,4,0.25);
           // 火球溅射
@@ -2038,7 +2206,15 @@ function updateUI(){
    渲染
    ============================================================ */
 function render(){
-  ctx.fillStyle='#0a0a0f';
+  var cfg=LEVELS[game.levelIdx]||LEVELS[0];
+  var mapImg=IMG_CACHE.maps[cfg.mapKey];
+
+  // v0.4 天空（章节主题色暗化渐变）
+  var skyGrad=ctx.createLinearGradient(0,0,0,H);
+  skyGrad.addColorStop(0,shadeColor(cfg.theme,-58));
+  skyGrad.addColorStop(0.72,shadeColor(cfg.theme,-14));
+  skyGrad.addColorStop(1,'#0a0a0f');
+  ctx.fillStyle=skyGrad;
   ctx.fillRect(0,0,W,H);
 
   // 屏幕震动偏移（低画质减弱）
@@ -2054,34 +2230,63 @@ function render(){
   // 摄像机跟随（世界坐标 → 屏幕）
   ctx.translate(-camX,-camY);
 
-  // 地面
-  var cfg=LEVELS[game.levelIdx]||LEVELS[0];
-  var mapImg=IMG_CACHE.maps[cfg.mapKey];
-  if(mapImg && mapImg.complete && mapImg.naturalWidth>0){
-    var pat=ctx.createPattern(mapImg,'repeat');
-    ctx.fillStyle=pat;
-    ctx.fillRect(0,0,mapW,mapH);
-    // 用章节主题色压暗纹理，保持整体氛围
-    ctx.globalCompositeOperation='multiply';
-    ctx.fillStyle=cfg.theme;
-    ctx.fillRect(0,0,mapW,mapH);
-    ctx.globalCompositeOperation='source-over';
-  }else{
-    ctx.fillStyle=cfg.theme;
-    ctx.fillRect(0,0,mapW,mapH);
+  // 远景层（视差 0.4）：月亮 + 山/树剪影 — 流畅画质跳过
+  if(SETTINGS.quality!=='low'){
+    var fpx=camX*0.4;
+    ctx.fillStyle='rgba(255,240,200,0.75)';
+    ctx.shadowColor='rgba(255,240,200,0.5)';
+    ctx.shadowBlur=26;
+    ctx.beginPath();
+    ctx.arc(300-fpx,120,26,0,Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur=0;
+    ctx.fillStyle='rgba(0,0,0,0.34)';
+    ctx.beginPath();
+    ctx.moveTo(-260-fpx,GROUND_Y);
+    for(var hi=0;hi<=8;hi++){
+      var hx=(-260-fpx)+hi*230;
+      ctx.lineTo(hx,GROUND_Y-56-Math.abs(Math.sin(hi*1.7+1))*52);
+    }
+    ctx.lineTo(camX+W+260,GROUND_Y);
+    ctx.closePath();
+    ctx.fill();
   }
 
-  // 地面网格
-  ctx.strokeStyle='rgba(0,0,0,0.12)';
-  ctx.lineWidth=1;
-  var gridSize=60;
-  var gx0=Math.floor(camX/gridSize)*gridSize;
-  var gy0=Math.floor(camY/gridSize)*gridSize;
-  for(var x=gx0;x<camX+W;x+=gridSize){
-    ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,mapH);ctx.stroke();
+  // 地面（GROUND_Y 以下）：纹理平铺 + 主题色压暗
+  if(mapImg && mapImg.complete && mapImg.naturalWidth>0){
+    var pat=ctx.createPattern(mapImg,'repeat');
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(camX,GROUND_Y,W,GROUND_Y+H-camY+400);
+    ctx.clip();
+    ctx.fillStyle=pat;
+    ctx.fillRect(camX,GROUND_Y,W,H);
+    ctx.globalCompositeOperation='multiply';
+    ctx.fillStyle=cfg.theme;
+    ctx.fillRect(camX,GROUND_Y,W,H);
+    ctx.restore();
+  }else{
+    ctx.fillStyle=cfg.theme;
+    ctx.fillRect(camX,GROUND_Y,W,H);
   }
-  for(var y=gy0;y<camY+H;y+=gridSize){
-    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(mapW,y);ctx.stroke();
+  // 地面顶部高光线（分界）
+  ctx.strokeStyle='rgba(255,255,255,0.14)';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(camX,GROUND_Y);
+  ctx.lineTo(camX+W,GROUND_Y);
+  ctx.stroke();
+
+  // 地面网格（仅地面区域，浅纹理线）
+  ctx.strokeStyle='rgba(0,0,0,0.15)';
+  ctx.lineWidth=1;
+  var gridSize=80;
+  var gx0=Math.floor(camX/gridSize)*gridSize;
+  for(var gx=gx0;gx<camX+W;gx+=gridSize){
+    ctx.beginPath();ctx.moveTo(gx,GROUND_Y);ctx.lineTo(gx,GROUND_Y+H);ctx.stroke();
+  }
+  for(var gy=GROUND_Y+40;gy<camY+H+200;gy+=40){
+    ctx.beginPath();ctx.moveTo(camX,gy);ctx.lineTo(camX+W,gy);ctx.stroke();
   }
 
   // 地面装饰（草丛/小石）— 流畅画质跳过
@@ -2105,35 +2310,43 @@ function render(){
   });
   }
 
-  // 地图边界墙
-  ctx.strokeStyle='rgba(255,215,0,0.6)';
-  ctx.lineWidth=5;
-  ctx.strokeRect(0,0,mapW,mapH);
+  // 地图左右边界墙（横版：竖墙）
+  ctx.strokeStyle='rgba(255,215,0,0.5)';
+  ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(0,GROUND_Y-800);ctx.lineTo(0,GROUND_Y+500);
+  ctx.moveTo(mapW,GROUND_Y-800);ctx.lineTo(mapW,GROUND_Y+500);
+  ctx.stroke();
   ctx.strokeStyle='rgba(255,215,0,0.15)';
-  ctx.lineWidth=2;
-  ctx.strokeRect(-6,-6,mapW+12,mapH+12);
+  ctx.lineWidth=8;
+  ctx.beginPath();
+  ctx.moveTo(-4,GROUND_Y-800);ctx.lineTo(-4,GROUND_Y+500);
+  ctx.moveTo(mapW+4,GROUND_Y-800);ctx.lineTo(mapW+4,GROUND_Y+500);
+  ctx.stroke();
 
-  // 障碍物（石柱）
+  // 障碍物（横版石墩：立于地面，只显示露出地面的柱身）
   obstacles.forEach(function(o){
-    if(o.x<camX-o.radius||o.x>camX+W+o.radius||o.y<camY-o.radius||o.y>camY+H+o.radius)return;
+    if(o.x<camX-o.radius*2||o.x>camX+W+o.radius*2)return;
+    var top=GROUND_Y-o.radius*1.7;
+    // 地面阴影
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(o.x,GROUND_Y+4,o.radius*1.1,o.radius*0.3,0,0,Math.PI*2);
+    ctx.fill();
+    // 柱身
     ctx.fillStyle='#6d5a42';
-    ctx.shadowColor='rgba(0,0,0,0.5)';
-    ctx.shadowBlur=10;
     ctx.beginPath();
-    ctx.arc(o.x,o.y,o.radius,0,Math.PI*2);
+    ctx.moveTo(o.x-o.radius,GROUND_Y);
+    ctx.lineTo(o.x-o.radius*0.85,top);
+    ctx.quadraticCurveTo(o.x,top-o.radius*0.5,o.x+o.radius*0.85,top);
+    ctx.lineTo(o.x+o.radius,GROUND_Y);
+    ctx.closePath();
     ctx.fill();
-    ctx.shadowBlur=0;
-    // 石纹高光
-    ctx.fillStyle='rgba(255,255,255,0.1)';
+    // 顶面高光
+    ctx.fillStyle='rgba(255,255,255,0.15)';
     ctx.beginPath();
-    ctx.arc(o.x-o.radius*0.3,o.y-o.radius*0.3,o.radius*0.45,0,Math.PI*2);
+    ctx.ellipse(o.x,top,o.radius*0.85,o.radius*0.28,0,0,Math.PI*2);
     ctx.fill();
-    // 外圈
-    ctx.strokeStyle='rgba(0,0,0,0.3)';
-    ctx.lineWidth=2;
-    ctx.beginPath();
-    ctx.arc(o.x,o.y,o.radius,0,Math.PI*2);
-    ctx.stroke();
   });
 
   // 经验宝石
@@ -2245,28 +2458,30 @@ function render(){
     }
   });
 
-  // v0.3 瞄准线：按住普攻/技能键时显示拖拽方向
-  if(aim.active&&game.running&&!game.paused){
-    var aimLen=230;
-    var ax2=player.x+Math.cos(aim.angle)*aimLen;
-    var ay2=player.y+Math.sin(aim.angle)*aimLen;
-    ctx.strokeStyle=aim.kind==='skill'?'rgba(255,215,0,0.75)':'rgba(255,255,255,0.55)';
-    ctx.lineWidth=2;
-    ctx.setLineDash([8,6]);
+  // v0.4 挥砍弧光（普攻连段特效：三刀渐宽，第三刀金色）
+  slashFX.forEach(function(sf){
+    var ap=1-sf.life/sf.maxLife;
+    ctx.save();
+    ctx.translate(sf.x,sf.y);
+    ctx.rotate(sf.dir>0?0:Math.PI);
+    var col=sf.stage>=3?'#ffd700':'#fff';
+    ctx.globalAlpha=Math.max(0,0.85-sf.life*3.5);
+    var r0=sf.range*0.42+ap*sf.range*0.5;
+    var r1=sf.range*0.6+ap*sf.range*0.18;
+    ctx.strokeStyle=col;
+    ctx.lineWidth=4+(sf.stage-1)*2;
+    ctx.shadowColor=col;
+    ctx.shadowBlur=10;
     ctx.beginPath();
-    ctx.moveTo(player.x,player.y);
-    ctx.lineTo(ax2,ay2);
+    ctx.arc(0,0,r0,-0.9,-0.25);
     ctx.stroke();
-    ctx.setLineDash([]);
-    var aa=aim.angle;
-    ctx.fillStyle=ctx.strokeStyle;
     ctx.beginPath();
-    ctx.moveTo(ax2,ay2);
-    ctx.lineTo(ax2-Math.cos(aa-0.42)*15,ay2-Math.sin(aa-0.42)*15);
-    ctx.lineTo(ax2-Math.cos(aa+0.42)*15,ay2-Math.sin(aa+0.42)*15);
-    ctx.closePath();
-    ctx.fill();
-  }
+    ctx.arc(0,0,r1,0.25,0.9);
+    ctx.stroke();
+    ctx.shadowBlur=0;
+    ctx.restore();
+    ctx.globalAlpha=1;
+  });
 
   // 弹幕轨迹
   projectiles.forEach(function(p){
@@ -2299,6 +2514,13 @@ function render(){
     // v6：BOSS渲染放大1.5倍（碰撞/判定不变），小怪保持原尺寸
     var ers=e.isBoss?1.5:1;
     var rr=e.radius*ers;
+
+    // v0.4 站立阴影（横版地面投影：浮空/跳跃时投在地面）
+    var shY=GROUND_Y-e.y;
+    ctx.fillStyle='rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(0,shY+2,rr*0.95,rr*0.28,0,0,Math.PI*2);
+    ctx.fill();
 
     // HP条
     if(e.hp<e.maxHp){
@@ -2364,6 +2586,16 @@ function render(){
         ctx.fill();
       }
       ctx.shadowBlur=0;
+    }
+
+    // v0.4 受击闪白（0.1s 白闪）
+    if(e.flash>0){
+      ctx.globalAlpha=0.75;
+      ctx.fillStyle='#fff';
+      ctx.beginPath();
+      ctx.arc(0,0,rr,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha=1;
     }
 
     // 眼睛
@@ -2544,6 +2776,13 @@ function render(){
   ctx.save();
   ctx.translate(player.x,player.y);
 
+  // v0.4 站立阴影（跳跃时投在地面）
+  var pshY=GROUND_Y-player.y;
+  ctx.fillStyle='rgba(0,0,0,0.32)';
+  ctx.beginPath();
+  ctx.ellipse(0,pshY+2,player.radius*1.1,player.radius*0.3,0,0,Math.PI*2);
+  ctx.fill();
+
   // 无敌闪烁
   if(player.invuln>0&&Math.floor(player.invuln*10)%2===0){
     ctx.globalAlpha=0.4;
@@ -2641,8 +2880,9 @@ function startLevel(levelIdx,charType){
   var cs=CHAR_STATS[charType];
   player.charType=charType;
   genMap(levelIdx);
-  player.x=mapW/2;
-  player.y=mapH/2;
+  player.x=mapW*0.25;
+  player.y=GROUND_Y;
+  player.vx=0;player.vy=0;player.onGround=true;
   player.hp=cs.hp;
   player.maxHp=cs.hp;
   player.speed=cs.speed;
@@ -2665,6 +2905,10 @@ function startLevel(levelIdx,charType){
   dash={cd:0,dur:0,ang:0};
   attackHeld={active:false,touchId:null,angle:0};
   aim={active:false,kind:null,type:null,touchId:null,angle:0};
+  combo={stage:0,done:false,hitAt:0,nextAt:0,hitSet:[]};
+  slashFX=[];
+  hitstopT=0;
+  jumpPressed=false;
   spawnTimer=0.5;
   buffTimers={atk:0,spd:0};
 
@@ -2868,68 +3112,43 @@ function bindAction(id,fn){
 bindAction('dashBtn',tryDash);
 
 /* v0.3 手动施放：普攻键按住连发 + 技能键拖拽指向 */
+/* v0.4 横版操作绑定：普攻连击 / 技能瞬发 / 跳跃 / 闪避 */
 var attackBtn=document.getElementById('attackBtn');
 attackBtn.addEventListener('touchstart',function(e){
   e.preventDefault();
+  tryAttack();
+},{passive:false});
+var jumpBtn=document.getElementById('jumpBtn');
+jumpBtn.addEventListener('touchstart',function(e){
+  e.preventDefault();
   if(!game.running||game.paused)return;
-  var t=e.changedTouches[0];
-  attackHeld.active=true;attackHeld.touchId=t.identifier;
-  attackHeld.angle=player.facing;
-  aimStart('attack',null,t);
+  jumpPressed=true;
 },{passive:false});
 ['skillBtn1','skillBtn2','skillBtn3'].forEach(function(id,idx){
   var type=['fireball','ice','lightning'][idx];
   var el=document.getElementById(id);
   el.addEventListener('touchstart',function(e){
     e.preventDefault();
-    var t=e.changedTouches[0];
-    aimStart('skill',type,t);
+    castSkill(type);
   },{passive:false});
 });
-// 拖拽追踪（挂 document，手指划出按钮也能继续瞄准）
-document.addEventListener('touchmove',function(e){
-  for(var i=0;i<e.changedTouches.length;i++){
-    var t=e.changedTouches[i];
-    if(aim.active&&t.identifier===aim.touchId)aimMove(t);
-    if(attackHeld.active&&t.identifier===attackHeld.touchId)attackHeld.angle=aimAngle(t);
-  }
-},{passive:false});
-function endManual(e){
-  for(var i=0;i<e.changedTouches.length;i++){
-    var t=e.changedTouches[i];
-    if(attackHeld.active&&t.identifier===attackHeld.touchId){
-      attackHeld.active=false;attackHeld.touchId=null;
-    }
-    if(aim.active&&t.identifier===aim.touchId)aimEnd(t);
-  }
-}
-document.addEventListener('touchend',endManual,{passive:false});
-document.addEventListener('touchcancel',endManual,{passive:false});
 
 // 鼠标支持（桌面预览/测试）
 attackBtn.addEventListener('mousedown',function(e){
   e.preventDefault();
+  tryAttack();
+});
+jumpBtn.addEventListener('mousedown',function(e){
+  e.preventDefault();
   if(!game.running||game.paused)return;
-  attackHeld.active=true;attackHeld.touchId='mouse';
-  attackHeld.angle=player.facing;
-  aimStart('attack',null,{identifier:'mouse',clientX:e.clientX,clientY:e.clientY});
-});
-document.addEventListener('mousemove',function(e){
-  if(aim.active&&aim.touchId==='mouse')aimMove({identifier:'mouse',clientX:e.clientX,clientY:e.clientY});
-  if(attackHeld.active&&attackHeld.touchId==='mouse')attackHeld.angle=aimAngle({clientX:e.clientX,clientY:e.clientY});
-});
-document.addEventListener('mouseup',function(e){
-  if(attackHeld.active&&attackHeld.touchId==='mouse'){
-    attackHeld.active=false;attackHeld.touchId=null;
-  }
-  if(aim.active&&aim.touchId==='mouse')aimEnd({identifier:'mouse',clientX:e.clientX,clientY:e.clientY});
+  jumpPressed=true;
 });
 ['skillBtn1','skillBtn2','skillBtn3'].forEach(function(id,idx){
   var type=['fireball','ice','lightning'][idx];
   var el=document.getElementById(id);
   el.addEventListener('mousedown',function(e){
     e.preventDefault();
-    aimStart('skill',type,{identifier:'mouse',clientX:e.clientX,clientY:e.clientY});
+    castSkill(type);
   });
 });
 
